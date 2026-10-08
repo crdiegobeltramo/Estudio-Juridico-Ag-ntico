@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Users,
   Sparkles,
-  Scale,
-  ArrowRight,
-  CheckCircle2
+  ArrowRight
 } from 'lucide-react';
 import {
   ALL_LEGAL_AGENTS,
@@ -90,10 +87,10 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl">{team.iconEmoji}</span>
+                      <span className="text-3xl">{team.emoji}</span>
                       <div>
                         <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#c5a059]/15 text-[#e5c378] border border-[#c5a059]/30">
-                          {team.targetBranch}
+                          {team.specialty}
                         </span>
                         <h3 className="font-serif font-bold text-base text-[#fdfbf7] mt-1">
                           {team.name}
@@ -116,7 +113,7 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
                           key={m!.id}
                           className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#091224] border border-[#1d2f5d] text-slate-200"
                         >
-                          <span>{m!.avatarEmoji}</span>
+                          <span>{m!.emoji}</span>
                           <span>{m!.name}</span>
                         </span>
                       ))}

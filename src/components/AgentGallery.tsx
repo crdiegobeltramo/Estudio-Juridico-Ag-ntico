@@ -9,21 +9,17 @@ import {
   X,
   Send,
   RefreshCw,
-  ShieldCheck,
   FileText,
   Layers,
-  CheckCircle2,
   AlertTriangle,
-  HelpCircle,
   ArrowRight,
-  Trash2,
-  Scale
+  Trash2
 } from 'lucide-react';
 import {
   ALL_LEGAL_AGENTS,
   LEGAL_TEAMS,
   LegalAgentDefinition,
-  AgentFolder
+  AgentCategory
 } from '../agents/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 
@@ -33,21 +29,25 @@ interface AgentGalleryProps {
   onLaunchMultiAgentStudio?: (selectedAgentIds: string[], initialQuery?: string) => void;
 }
 
-const FOLDER_LABELS: Record<AgentFolder | 'all', string> = {
-  all: 'Todos los Especialistas (27)',
+const CATEGORY_LABELS: Record<AgentCategory | 'all', string> = {
+  all: `Todos los Especialistas (${ALL_LEGAL_AGENTS.length})`,
   orchestration: 'Dirección & Orquestación',
   legal: 'Abogados & Consultoría General',
-  civil: 'Civil, Comercial, Familia & Sucesiones',
-  penal: 'Penal & Procesal Penal',
-  laboral: 'Laboral, Procesal & Previsional',
-  tributario: 'Tributario & Contencioso Fiscal',
-  publico: 'Constitucional, DD.HH. & Administrativo',
-  especialidades: 'Consumidor, Ambiental, Digital & PI',
-  litigacion: 'Redacción, Demandas & Estrategia',
-  investigacion: 'Investigación Normativa & Fallos',
-  documentos: 'Análisis Documental & Cronologías',
-  control: 'Abogado del Diablo & Verificación',
-  academico: 'Docencia & Casos Prácticos'
+  civil: 'Derecho Civil',
+  commercial: 'Comercial, Sociedades & Contratos',
+  family: 'Derecho de Familia',
+  succession: 'Sucesiones',
+  criminal: 'Penal & Procesal Penal',
+  labor: 'Laboral & Seguridad Social',
+  tax: 'Tributario & Contencioso Fiscal',
+  constitutional: 'Derecho Constitucional',
+  'human-rights': 'Derechos Humanos & DIDH',
+  administrative: 'Derecho Administrativo',
+  litigation: 'Redacción, Demandas & Estrategia',
+  research: 'Investigación Normativa & Fallos',
+  documents: 'Análisis Documental & Cronologías',
+  quality: 'Abogado del Diablo & Verificación',
+  academic: 'Docencia & Casos Prácticos'
 };
 
 export const AgentGallery: React.FC<AgentGalleryProps> = ({
@@ -56,7 +56,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
   onLaunchMultiAgentStudio
 }) => {
   const { activeJurisdiction } = useAuth();
-  const [selectedFolder, setSelectedFolder] = useState<AgentFolder | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<AgentCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Team Builder State ("Agregar al Equipo")
@@ -76,15 +76,16 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
   const [inspectedAgent, setInspectedAgent] = useState<LegalAgentDefinition | null>(null);
 
   const filteredAgents = ALL_LEGAL_AGENTS.filter((agent) => {
-    const matchesFolder = selectedFolder === 'all' || agent.folder === selectedFolder;
+    const matchesCategory = selectedCategory === 'all' || agent.category === selectedCategory;
     const q = searchQuery.toLowerCase().trim();
+    const capabilitiesList = agent.capabilities || [];
     const matchesSearch =
       !q ||
-      agent.name.toLowerCase().includes(q) ||
-      agent.specialty.toLowerCase().includes(q) ||
-      agent.role.toLowerCase().includes(q) ||
-      agent.areas.some((a) => a.toLowerCase().includes(q));
-    return matchesFolder && matchesSearch;
+      (agent.name || '').toLowerCase().includes(q) ||
+      (agent.specialty || '').toLowerCase().includes(q) ||
+      (agent.description || '').toLowerCase().includes(q) ||
+      capabilitiesList.some((c) => c.toLowerCase().includes(q));
+    return matchesCategory && matchesSearch;
   });
 
   const handleToggleTeamAgent = (agent: LegalAgentDefinition) => {
@@ -120,13 +121,20 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
     setIsChatLoading(true);
 
     try {
-      const res = await fetch('/api/multiagent/agent-chat', {
+      const res = await fetch('/api/multiagent/agent-consult', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentId: activeAgentChat.id,
           message: userText,
-          jurisdiction: activeJurisdiction
+          jurisdictionContext: {
+            pais: 'Argentina',
+            tipoJurisdiccion: 'Nacional',
+            provincia: activeJurisdiction || 'Ciudad Autónoma de Buenos Aires (CABA)',
+            ciudad: 'Buenos Aires',
+            fuero: 'General',
+            tribunal: 'Juzgado en turno'
+          }
         })
       });
       const data = await res.json();
@@ -170,16 +178,22 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
         body: JSON.stringify({
           query: teamQuery,
           actionType: 'CONSULTA_JURIDICA',
-          jurisdiction: activeJurisdiction,
+          jurisdictionContext: {
+            pais: 'Argentina',
+            tipoJurisdiccion: 'Nacional',
+            provincia: activeJurisdiction || 'Ciudad Autónoma de Buenos Aires (CABA)',
+            ciudad: 'Buenos Aires',
+            fuero: 'Civil y Comercial',
+            tribunal: 'Juzgado de Primera Instancia en turno'
+          },
           manualAgentIds: teamAgentIds
         })
       });
       const data = await res.json();
-      setTeamResponse(
-        data.result?.finalIntegratedDocument ||
-          data.result?.executiveSummary ||
-          'Dictamen multiagente procesado correctamente.'
-      );
+      const formattedReport = data.finalConsolidatedReport
+        ? `DICTAMEN MULTIAGENTE CONSOLIDADO: ${data.finalConsolidatedReport.titulo}\n\n1. PROBLEMA JURÍDICO:\n${data.finalConsolidatedReport.problemaJuridico}\n\n2. ANÁLISIS JURÍDICO:\n${data.finalConsolidatedReport.analisisJuridico}\n\n3. ESTRATEGIA Y RECOMENDACIÓN:\n${data.finalConsolidatedReport.recomendacion}\n\n4. BORRADOR / DOCUMENTO GENERADO:\n${data.finalConsolidatedReport.borradorEscritoOContrato}`
+        : 'Dictamen multiagente procesado correctamente.';
+      setTeamResponse(formattedReport);
     } catch (err) {
       console.error(err);
       setTeamResponse('Error al ejecutar la mesa de trabajo con el equipo seleccionado.');
@@ -214,7 +228,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   key={member.id}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#091224] border border-[#1d2f5d] text-xs text-slate-200"
                 >
-                  <span>{member.avatarEmoji}</span>
+                  <span>{member.emoji}</span>
                   <span className="font-medium">{member.name}</span>
                   {member.id !== 'legal-director' && (
                     <button
@@ -248,7 +262,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
               </option>
               {LEGAL_TEAMS.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.iconEmoji} {t.name} ({t.memberAgentIds.length})
+                  {t.emoji} {t.name} ({t.memberAgentIds.length})
                 </option>
               ))}
             </select>
@@ -323,7 +337,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
         )}
       </div>
 
-      {/* Search & Folder Category Filter Bar */}
+      {/* Search & Category Filter Bar */}
       <div className="bg-[#0c162e] border border-[#1d2f5d] rounded-2xl p-4 space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="relative w-full md:w-96">
@@ -343,18 +357,18 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {(Object.keys(FOLDER_LABELS) as (AgentFolder | 'all')[]).map((folder) => (
+          {(Object.keys(CATEGORY_LABELS) as (AgentCategory | 'all')[]).map((cat) => (
             <button
-              key={folder}
+              key={cat}
               type="button"
-              onClick={() => setSelectedFolder(folder)}
+              onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all cursor-pointer ${
-                selectedFolder === folder
+                selectedCategory === cat
                   ? 'bg-[#c5a059] text-[#0b1325] font-bold shadow-xs'
                   : 'bg-[#111f3f] text-slate-300 hover:text-white border border-[#1d2f5d]'
               }`}
             >
-              {FOLDER_LABELS[folder]}
+              {CATEGORY_LABELS[cat]}
             </button>
           ))}
         </div>
@@ -364,6 +378,9 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredAgents.map((agent) => {
           const isAddedToTeam = teamAgentIds.includes(agent.id);
+          const categoryBadge = (agent.category || 'legal').toUpperCase();
+          const capabilitiesList = agent.capabilities || [];
+
           return (
             <div
               key={agent.id}
@@ -377,18 +394,12 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                 {/* Card Top Header: Emoji + Specialty Badge */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border shadow-inner shrink-0"
-                      style={{
-                        backgroundColor: `${agent.accentColor}15`,
-                        borderColor: `${agent.accentColor}45`
-                      }}
-                    >
-                      {agent.avatarEmoji}
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-[#132347] border border-[#c5a059]/40 shadow-inner shrink-0">
+                      {agent.emoji}
                     </div>
                     <div>
                       <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#132347] text-[#e5c378] border border-[#c5a059]/30">
-                        {agent.folder.toUpperCase()}
+                        {categoryBadge}
                       </span>
                       <h3 className="font-serif font-bold text-base text-[#fdfbf7] mt-1 leading-snug">
                         {agent.name}
@@ -417,22 +428,22 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
 
                 {/* Mission excerpt */}
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
-                  {agent.mission}
+                  {agent.mission || agent.description}
                 </p>
 
-                {/* Areas Pills */}
+                {/* Capabilities Pills */}
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {agent.areas.slice(0, 4).map((area, i) => (
+                  {capabilitiesList.slice(0, 3).map((cap, i) => (
                     <span
                       key={i}
-                      className="text-[10px] px-2 py-0.5 rounded-md bg-[#081020] text-slate-300 border border-[#1d2f5d]"
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-[#081020] text-slate-300 border border-[#1d2f5d] line-clamp-1"
                     >
-                      {area}
+                      {cap}
                     </span>
                   ))}
-                  {agent.areas.length > 4 && (
+                  {capabilitiesList.length > 3 && (
                     <span className="text-[10px] px-1.5 py-0.5 text-slate-400">
-                      +{agent.areas.length - 4} más
+                      +{capabilitiesList.length - 3} más
                     </span>
                   )}
                 </div>
@@ -483,9 +494,9 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
             {/* Modal Header */}
             <div className="p-4 bg-[#091224] border-b border-[#1d2f5d] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{activeAgentChat.avatarEmoji}</span>
+                <span className="text-3xl">{activeAgentChat.emoji}</span>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-serif font-bold text-base text-[#fdfbf7]">
                       {activeAgentChat.name}
                     </h3>
@@ -493,7 +504,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                       {activeAgentChat.specialty}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">{activeAgentChat.title}</p>
+                  <p className="text-xs text-slate-400 line-clamp-1">{activeAgentChat.description}</p>
                 </div>
               </div>
               <button
@@ -512,9 +523,12 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   {activeAgentChat.name} — {activeAgentChat.specialty}
                 </div>
                 <p className="text-slate-300 leading-relaxed">{activeAgentChat.mission}</p>
-                <div className="pt-1 text-[11px] text-slate-400">
-                  Preguntas habituales de encuadre: {activeAgentChat.questionsToAsk.slice(0, 2).join(' • ')}
-                </div>
+                {(activeAgentChat.clarifyingQuestions || []).length > 0 && (
+                  <div className="pt-1 text-[11px] text-slate-400">
+                    Preguntas habituales de encuadre:{' '}
+                    {(activeAgentChat.clarifyingQuestions || []).slice(0, 2).join(' • ')}
+                  </div>
+                )}
               </div>
 
               {chatHistory.map((item, idx) => (
@@ -572,13 +586,13 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
           <div className="bg-[#0c162e] border border-[#c5a059]/50 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
             <div className="flex items-start justify-between border-b border-[#1d2f5d] pb-4">
               <div className="flex items-center gap-3">
-                <span className="text-4xl">{inspectedAgent.avatarEmoji}</span>
+                <span className="text-4xl">{inspectedAgent.emoji}</span>
                 <div>
                   <h3 className="font-serif font-bold text-lg text-[#fdfbf7]">
                     {inspectedAgent.name}
                   </h3>
                   <p className="text-xs text-[#c5a059] font-medium">
-                    {inspectedAgent.specialty} • {inspectedAgent.role}
+                    {inspectedAgent.specialty} • {inspectedAgent.folderPath}
                   </p>
                 </div>
               </div>
@@ -610,7 +624,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   <Layers className="w-3.5 h-3.5" /> FLUJO DE TRABAJO
                 </div>
                 <ol className="list-decimal list-inside space-y-1 text-slate-300">
-                  {inspectedAgent.workflow.map((w, i) => (
+                  {(inspectedAgent.workflow || []).map((w, i) => (
                     <li key={i}>{w}</li>
                   ))}
                 </ol>
@@ -620,7 +634,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   <FileText className="w-3.5 h-3.5" /> ENTREGABLES & CALIDAD
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-slate-300">
-                  {inspectedAgent.deliverables.map((d, i) => (
+                  {(inspectedAgent.deliverables || []).map((d, i) => (
                     <li key={i}>{d}</li>
                   ))}
                 </ul>
@@ -633,7 +647,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   <AlertTriangle className="w-3.5 h-3.5" /> ERRORES QUE EVITA
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-slate-300">
-                  {inspectedAgent.errorsToAvoid.map((err, i) => (
+                  {(inspectedAgent.errorsToAvoid || []).map((err, i) => (
                     <li key={i}>{err}</li>
                   ))}
                 </ul>
@@ -643,7 +657,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   <ArrowRight className="w-3.5 h-3.5" /> CUÁNDO DERIVA A OTRO AGENTE
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-slate-300">
-                  {inspectedAgent.whenToDelegate.map((del, i) => (
+                  {(inspectedAgent.handoffRules || []).map((del, i) => (
                     <li key={i}>{del}</li>
                   ))}
                 </ul>
@@ -658,7 +672,7 @@ export const AgentGallery: React.FC<AgentGalleryProps> = ({
                   setInspectedAgent(null);
                   handleOpenConsultAgent(target);
                 }}
-                className="px-4 py-2 rounded-xl bg-[#c5a059] text-[#0b1325] font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-[#c5a059] text-[#0b1325] font-bold text-xs cursor-pointer"
               >
                 Consultar a {inspectedAgent.name}
               </button>
