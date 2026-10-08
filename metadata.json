@@ -1,0 +1,7 @@
+{
+  "name": "Academia Virtual del Derecho — Legal AI",
+  "description": "Plataforma jurídica y académica integral con IA jurídica, legislación argentina, jurisprudencia, doctrina, campus universitario y estudio jurídico digital.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

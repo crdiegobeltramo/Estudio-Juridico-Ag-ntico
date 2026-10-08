@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil de usuario con rol, credenciales y configuración",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["estudiante", "abogado", "docente", "admin_plataforma", "admin_institucion"] },
+        "institution": { "type": "string", "maxLength": 200 },
+        "matricula": { "type": "string", "maxLength": 100 },
+        "jurisdiction": { "type": "string", "maxLength": 100 },
+        "plan": { "type": "string", "enum": ["free", "estudiante", "abogado", "institucional"] },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "LegalCase": {
+      "title": "LegalCase",
+      "description": "Caso jurídico o expediente confidencial aislado por usuario",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "caratula": { "type": "string", "maxLength": 300 },
+        "materia": { "type": "string", "maxLength": 100 },
+        "jurisdiccion": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "ownerId", "caratula"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Perfiles de usuarios indexados por su Firebase Auth UID"
+    },
+    "/cases/{caseId}": {
+      "schema": "LegalCase",
+      "description": "Casos jurídicos confidenciales aislados por propietario"
+    }
+  }
+}
