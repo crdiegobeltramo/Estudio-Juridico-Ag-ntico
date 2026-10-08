@@ -1948,6 +1948,101 @@ REGLAS ABSOLUTAS DE LA ACADEMIA VIRTUAL DEL DERECHO:
   }
 });
 
+// Dedicated Carta Documento & Escritos Fehacientes Specialist Endpoint
+app.post('/api/multiagent/carta-documento', async (req: Request, res: Response) => {
+  try {
+    const {
+      tipoComunicacion = 'Intimación de Pago y Constitución en Mora (Art. 886 CCCN)',
+      lugarYFecha = `Buenos Aires, ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+      remitente = {},
+      destinatario = {},
+      plazoIntimacion = '48 horas hábiles',
+      hechos = '',
+      intimacion = '',
+      apercibimiento = 'iniciar las acciones judiciales civiles, comerciales y/o laborales pertinentes, con más intereses, daños y perjuicios y costas',
+      referenciaPrevia = ''
+    } = req.body;
+
+    const remNombre = remitente.nombre || '[COMPLETAR: Nombre / Razón Social del Remitente]';
+    const remDoc = remitente.dniCuit || '[COMPLETAR: DNI / CUIT del Remitente]';
+    const remDom = remitente.domicilio || '[COMPLETAR: Domicilio del Remitente]';
+    const destNombre = destinatario.nombre || '[COMPLETAR: Nombre / Razón Social del Destinatario]';
+    const destDoc = destinatario.dniCuit || '[COMPLETAR: DNI / CUIT del Destinatario]';
+    const destDom = destinatario.domicilio || '[COMPLETAR: Domicilio del Destinatario]';
+
+    const fallbackText = `${lugarYFecha.toUpperCase()}
+
+AL DESTINATARIO: ${destNombre.toUpperCase()} (${destDoc})
+DOMICILIO: ${destDom}, (${destinatario.codigoPostal || '----'}) ${destinatario.localidad || ''}, ${destinatario.provincia || ''}
+
+DE MI CONSIDERACIÓN:
+
+Me dirijo a Ud. en mi carácter de titular y legitimado (${remNombre}, DNI/CUIT N° ${remDoc}, constituyendo domicilio a todos los efectos legales en ${remDom}, ${remitente.localidad || ''}, ${remitente.provincia || ''})${referenciaPrevia ? `, en relación y respuesta a vuestra comunicación previa (${referenciaPrevia})` : ''}, a fin de cursarle la presente ${tipoComunicacion.toUpperCase()}:
+
+1. ANTECEDENTES Y RELACIÓN FÁCTICA: ${hechos || '[COMPLETAR: Describir con precisión fechas, contrato, relación laboral o hecho generador del reclamo].'}
+
+2. INTIMACIÓN FEHACIENTE Y PLAZO PERENTORIO: En virtud de lo expuesto y conforme a derecho (arts. 9, 724, 886, 1084, 1088, 1716 y cctes. del Código Civil y Comercial de la Nación / Ley 20.744 y Ley 24.240 según corresponda), INTIMO A UD. en el plazo perentorio e improrrogable de ${plazoIntimacion.toUpperCase()} contados a partir de la recepción de la presente, proceda a: ${intimacion || '[COMPLETAR: Indicar conducta exigible, suma adeudada o cumplimiento requerido].'}
+
+3. APERCIBIMIENTO LEGAL: Todo ello BAJO APERCIBIMIENTO de ${apercibimiento}. Hago expresa reserva de derechos, intereses moratorios y punitorios, daños y perjuicios y costas.
+
+QUEDA UD. DEBIDAMENTE NOTIFICADO, INTIMADO Y CONSTITUIDO EN MORA.
+
+Firma: ____________________________________
+Aclaración: ${remNombre}
+DNI / CUIT: ${remDoc}`;
+
+    if (!ai) {
+      return res.json({
+        agentId: 'carta-documento-writer',
+        agentName: 'Especialista en Cartas Documento y Escritos Jurídicos IA',
+        cuerpoTexto: fallbackText
+      });
+    }
+
+    const prompt = `Actúa como el "Especialista en Cartas Documento y Escritos Jurídicos IA" (carta-documento-writer) de la Academia Virtual del Derecho (República Argentina).
+Debes redactar el TEXTO ÍNTEGRO Y DEFINITIVO de una CARTA DOCUMENTO / ESCRITO DE INTIMACIÓN FEHACIENTE argentina, lista para ser impresa en DOC/PDF y cargada en el sistema Mis Comunicaciones Digitales (Correo Argentino).
+
+DATOS PROPORCIONADOS POR EL USUARIO:
+- Tipo de Comunicación / Escrito: ${tipoComunicacion}
+- Lugar y Fecha: ${lugarYFecha}
+- Remitente: ${remNombre} | DNI/CUIT: ${remDoc} | Domicilio: ${remDom}, CP ${remitente.codigoPostal || ''}, ${remitente.localidad || ''}, ${remitente.provincia || ''}
+- Destinatario: ${destNombre} | DNI/CUIT: ${destDoc} | Domicilio: ${destDom}, CP ${destinatario.codigoPostal || ''}, ${destinatario.localidad || ''}, ${destinatario.provincia || ''}
+- Referencia a CD o comunicación previa (si aplica): ${referenciaPrevia || 'Primera intimación'}
+- Hechos / Antecedentes: ${hechos}
+- Exigencia / Intimación concreta: ${intimacion}
+- Plazo Perentorio otorgado: ${plazoIntimacion}
+- Apercibimiento Legal: ${apercibimiento}
+
+REGLAS OBLIGATORIAS:
+1. Redacta el texto con el estilo solemne, contundente y técnico-forense propio de las Cartas Documento en la República Argentina.
+2. Si es un rechazo/contestación de Carta Documento, incluye la negativa categórica de rigor ("RECHAZO por improcedente, falaz, maliciosa y carente de sustento fáctico y jurídico vuestra Carta Documento...").
+3. Si es una intimación laboral, civil, comercial, locativa o de consumo, cita las normas pertinentes del Derecho Argentino (CCCN, LCT 20.744, Ley 24.240, etc.) sin inventar artículos inexistentes.
+4. NUNCA inventes datos fácticos que no estén en la solicitud; si falta un monto, fecha o número de comprobante, coloca [COMPLETAR: ...].
+5. Cierra obligatoriamente con "QUEDA UD. DEBIDAMENTE NOTIFICADO, INTIMADO Y CONSTITUIDO EN MORA." y los datos de firma del remitente.
+6. Devuelve ÚNICAMENTE el texto limpio de la Carta Documento / Escrito sin comentarios introductorios.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.15
+      }
+    });
+
+    return res.json({
+      agentId: 'carta-documento-writer',
+      agentName: 'Especialista en Cartas Documento y Escritos Jurídicos IA',
+      cuerpoTexto: response.text?.trim() || fallbackText
+    });
+  } catch (error: any) {
+    console.error('Error en /api/multiagent/carta-documento:', error);
+    return res.status(500).json({
+      error: 'Error al generar el texto de la Carta Documento.',
+      details: error.message
+    });
+  }
+});
+
 // -------------------------------------------------------------
 // VITE MIDDLEWARE (DEV) / STATIC (PROD)
 // -------------------------------------------------------------

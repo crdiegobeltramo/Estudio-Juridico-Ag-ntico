@@ -144,6 +144,12 @@ export function selectOptimalAgentsForQuery(
     chosenIds.add('ip-lawyer');
   }
 
+  if (/(carta documento|telegrama|tcl\b|intimaci[oó]n|constituir en mora|mis comunicaciones|cd\b)/i.test(q)) {
+    secondaryBranches.push('Comunicaciones Fehacientes y Cartas Documento');
+    chosenIds.add('carta-documento-writer');
+    chosenIds.add('legal-writer');
+  }
+
   // 2. Action-based specialization
   if (actionType === 'PREPARAR_DEMANDA') {
     chosenIds.add('litigation-builder');
@@ -151,6 +157,7 @@ export function selectOptimalAgentsForQuery(
     chosenIds.add('chronology-builder');
   } else if (actionType === 'REDACTAR_ESCRITO' || actionType === 'REVISAR_ESCRITO') {
     chosenIds.add('legal-writer');
+    chosenIds.add('carta-documento-writer');
   } else if (actionType === 'ESTUDIAR_DERECHO' || actionType === 'CREAR_CASO_PRACTICO') {
     chosenIds.add('academic-case-professor');
   } else if (actionType === 'ANALIZAR_DOCUMENTOS') {

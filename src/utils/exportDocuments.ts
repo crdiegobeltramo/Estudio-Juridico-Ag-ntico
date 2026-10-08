@@ -270,6 +270,286 @@ export function exportOrchestrationToPDF(result: MultiAgentOrchestrationResponse
   doc.save(`Dictamen_AVD_${result.id}.pdf`);
 }
 
+export interface CartaDocumentoPayload {
+  tipoComunicacion: string;
+  lugarYFecha: string;
+  remitente: {
+    nombre: string;
+    dniCuit: string;
+    domicilio: string;
+    codigoPostal: string;
+    localidad: string;
+    provincia: string;
+  };
+  destinatario: {
+    nombre: string;
+    dniCuit: string;
+    domicilio: string;
+    codigoPostal: string;
+    localidad: string;
+    provincia: string;
+  };
+  cuerpoTexto: string;
+}
+
+export function exportCartaDocumentoToDOC(payload: CartaDocumentoPayload): void {
+  const safeBody = (payload.cuerpoTexto || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>');
+
+  const htmlContent = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <title>Carta Documento - ${payload.remitente.nombre} a ${payload.destinatario.nombre}</title>
+      <style>
+        body { font-family: 'Courier New', Courier, monospace; font-size: 11pt; line-height: 1.45; color: #000; margin: 1.8cm; }
+        .header-title { font-family: 'Times New Roman', serif; font-size: 15pt; font-weight: bold; text-align: center; text-transform: uppercase; border: 2px solid #000; padding: 8px; margin-bottom: 14px; background: #f4f4f4; }
+        table.parties { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-family: Arial, sans-serif; font-size: 9.5pt; }
+        table.parties td, table.parties th { border: 1px solid #000; padding: 7px 9px; vertical-align: top; width: 50%; }
+        table.parties th { background: #e8e8e8; text-transform: uppercase; font-weight: bold; text-align: left; font-size: 9pt; }
+        .date-bar { border: 1px solid #000; padding: 6px 10px; margin-bottom: 16px; font-family: Arial, sans-serif; font-size: 9.5pt; background: #fafafa; }
+        .body-box { border: 2px solid #000; padding: 16px; min-height: 360px; font-family: 'Courier New', Courier, monospace; font-size: 11pt; text-align: justify; white-space: pre-wrap; }
+        .signature-table { width: 100%; margin-top: 28px; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 9.5pt; }
+        .signature-table td { width: 33%; text-align: center; padding-top: 35px; border-top: 1px solid #000; }
+        .footer-note { margin-top: 18px; font-family: Arial, sans-serif; font-size: 8.5pt; color: #444; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="header-title">
+        CARTA DOCUMENTO / COMUNICACIÓN FEHACIENTE<br/>
+        <span style="font-size: 9.5pt; font-weight: normal;">${payload.tipoComunicacion} — República Argentina</span>
+      </div>
+
+      <table class="parties">
+        <tr>
+          <th>REMITENTE</th>
+          <th>DESTINATARIO</th>
+        </tr>
+        <tr>
+          <td>
+            <strong>Apellido y Nombre / Razón Social:</strong> ${payload.remitente.nombre || '[COMPLETAR]'}<br/>
+            <strong>DNI / CUIT:</strong> ${payload.remitente.dniCuit || '[COMPLETAR]'}<br/>
+            <strong>Domicilio:</strong> ${payload.remitente.domicilio || '[COMPLETAR]'}<br/>
+            <strong>CP / Localidad:</strong> (${payload.remitente.codigoPostal || '----'}) ${payload.remitente.localidad || '[COMPLETAR]'}<br/>
+            <strong>Provincia:</strong> ${payload.remitente.provincia || '[COMPLETAR]'}
+          </td>
+          <td>
+            <strong>Apellido y Nombre / Razón Social:</strong> ${payload.destinatario.nombre || '[COMPLETAR]'}<br/>
+            <strong>DNI / CUIT:</strong> ${payload.destinatario.dniCuit || '[COMPLETAR]'}<br/>
+            <strong>Domicilio:</strong> ${payload.destinatario.domicilio || '[COMPLETAR]'}<br/>
+            <strong>CP / Localidad:</strong> (${payload.destinatario.codigoPostal || '----'}) ${payload.destinatario.localidad || '[COMPLETAR]'}<br/>
+            <strong>Provincia:</strong> ${payload.destinatario.provincia || '[COMPLETAR]'}
+          </td>
+        </tr>
+      </table>
+
+      <div class="date-bar">
+        <strong>LUGAR Y FECHA DE EMISIÓN:</strong> ${payload.lugarYFecha}
+      </div>
+
+      <div class="body-box">${safeBody}</div>
+
+      <br/>
+      <table class="signature-table">
+        <tr>
+          <td>Firma del Remitente</td>
+          <td>Aclaración: ${payload.remitente.nombre || '____________________'}</td>
+          <td>Tipo y N° Doc.: ${payload.remitente.dniCuit || '____________________'}</td>
+        </tr>
+      </table>
+
+      <div class="footer-note">
+        Documento generado por el Agente Especialista en Cartas Documento y Escritos Jurídicos IA — Academia Virtual del Derecho. Listo para imposición en https://miscomunicacionesdigitales.com.ar/account/login
+      </div>
+    </body>
+    </html>
+  `;
+
+  const cleanName = (payload.destinatario.nombre || 'Destinatario').replace(/[^a-zA-Z0-9_-]/g, '_');
+  downloadBlob(
+    htmlContent,
+    `Carta_Documento_${cleanName}.doc`,
+    'application/msword;charset=utf-8'
+  );
+}
+
+export function exportCartaDocumentoToPDF(payload: CartaDocumentoPayload): void {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 16;
+
+  // Title Box
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, y, contentWidth, 14);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
+  doc.text('CARTA DOCUMENTO — COMUNICACION FEHACIENTE', pageWidth / 2, y + 6, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.text(`${payload.tipoComunicacion} | Republica Argentina`, pageWidth / 2, y + 11.5, { align: 'center' });
+  y += 18;
+
+  // Parties Boxes (Remitente | Destinatario)
+  const colWidth = contentWidth / 2;
+  doc.setLineWidth(0.35);
+  doc.rect(margin, y, colWidth, 32);
+  doc.rect(margin + colWidth, y, colWidth, 32);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('1. REMITENTE', margin + 3, y + 5);
+  doc.text('2. DESTINATARIO', margin + colWidth + 3, y + 5);
+  doc.line(margin, y + 7, margin + contentWidth, y + 7);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const remLines = [
+    `Nombre / Razon Social: ${payload.remitente.nombre || '[COMPLETAR]'}`,
+    `DNI / CUIT: ${payload.remitente.dniCuit || '[COMPLETAR]'}`,
+    `Domicilio: ${payload.remitente.domicilio || '[COMPLETAR]'}`,
+    `CP / Localidad: (${payload.remitente.codigoPostal || '----'}) ${payload.remitente.localidad || ''}`,
+    `Provincia: ${payload.remitente.provincia || ''}`
+  ];
+  const destLines = [
+    `Nombre / Razon Social: ${payload.destinatario.nombre || '[COMPLETAR]'}`,
+    `DNI / CUIT: ${payload.destinatario.dniCuit || '[COMPLETAR]'}`,
+    `Domicilio: ${payload.destinatario.domicilio || '[COMPLETAR]'}`,
+    `CP / Localidad: (${payload.destinatario.codigoPostal || '----'}) ${payload.destinatario.localidad || ''}`,
+    `Provincia: ${payload.destinatario.provincia || ''}`
+  ];
+
+  let py = y + 11.5;
+  for (let i = 0; i < remLines.length; i++) {
+    doc.text(remLines[i].slice(0, 52), margin + 3, py);
+    doc.text(destLines[i].slice(0, 52), margin + colWidth + 3, py);
+    py += 4.5;
+  }
+  y += 36;
+
+  // Place & Date bar
+  doc.rect(margin, y, contentWidth, 8);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(`LUGAR Y FECHA: ${payload.lugarYFecha}`, margin + 3, y + 5.3);
+  y += 12;
+
+  // Body Text Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('TEXTO DE LA CARTA DOCUMENTO / ESCRITO:', margin, y);
+  y += 3;
+
+  // Body Text Content
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(9.5);
+  const bodyLines = doc.splitTextToSize(payload.cuerpoTexto || '', contentWidth - 8);
+  const boxStartY = y;
+
+  y += 6;
+  for (const line of bodyLines) {
+    if (y > 245) {
+      doc.rect(margin, boxStartY, contentWidth, y - boxStartY + 2);
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(line, margin + 4, y);
+    y += 4.5;
+  }
+
+  const finalBoxHeight = Math.max(115, y - boxStartY + 8);
+  if (boxStartY + finalBoxHeight <= 255) {
+    doc.rect(margin, boxStartY, contentWidth, finalBoxHeight);
+    y = boxStartY + finalBoxHeight + 16;
+  } else {
+    doc.rect(margin, boxStartY, contentWidth, y - boxStartY + 4);
+    y += 14;
+  }
+
+  if (y > 265) {
+    doc.addPage();
+    y = 35;
+  }
+
+  // Signature block
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.line(margin + 5, y, margin + 55, y);
+  doc.line(margin + 65, y, margin + 120, y);
+  doc.line(margin + 130, y, margin + contentWidth - 5, y);
+
+  doc.text('Firma del Remitente', margin + 15, y + 4.5);
+  doc.text(`Aclaracion: ${(payload.remitente.nombre || '').slice(0, 25)}`, margin + 67, y + 4.5);
+  doc.text(`DNI/CUIT: ${(payload.remitente.dniCuit || '').slice(0, 18)}`, margin + 132, y + 4.5);
+
+  const cleanName = (payload.destinatario.nombre || 'Destinatario').replace(/[^a-zA-Z0-9_-]/g, '_');
+  doc.save(`Carta_Documento_${cleanName}.pdf`);
+}
+
+export function exportLegalDraftToDOC(title: string, content: string): void {
+  const safeContent = (content || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>');
+
+  const htmlContent = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <title>${title}</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; color: #000; margin: 2.5cm; text-align: justify; }
+        h1 { font-size: 14pt; text-transform: uppercase; text-align: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 18px; }
+      </style>
+    </head>
+    <body>
+      <h1>${title}</h1>
+      <div>${safeContent}</div>
+    </body>
+    </html>
+  `;
+
+  const cleanTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  downloadBlob(htmlContent, `${cleanTitle}.doc`, 'application/msword;charset=utf-8');
+}
+
+export function exportLegalDraftToPDF(title: string, content: string): void {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const maxLineWidth = pageWidth - margin * 2;
+  let y = 22;
+
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
+  const titleLines = doc.splitTextToSize(title.toUpperCase(), maxLineWidth);
+  doc.text(titleLines, margin, y);
+  y += titleLines.length * 6 + 2;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  const bodyLines = doc.splitTextToSize(content || '', maxLineWidth);
+  for (const line of bodyLines) {
+    if (y > 275) {
+      doc.addPage();
+      y = 22;
+    }
+    doc.text(line, margin, y);
+    y += 5;
+  }
+
+  const cleanTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  doc.save(`${cleanTitle}.pdf`);
+}
+
 function downloadBlob(content: string, filename: string, contentType: string) {
   const blob = new Blob([content], { type: contentType });
   const url = URL.createObjectURL(blob);

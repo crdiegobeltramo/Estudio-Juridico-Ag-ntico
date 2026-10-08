@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Send
 } from 'lucide-react';
 import {
   ALL_LEGAL_AGENTS,
@@ -9,6 +10,7 @@ import {
   getAgentById
 } from '../agents/index.ts';
 import { AgentGallery } from '../components/AgentGallery.tsx';
+import { CartaDocumentoBuilder } from '../components/CartaDocumentoBuilder.tsx';
 
 interface AgentsGalleryViewProps {
   onLaunchWithAgent?: (agentId: string) => void;
@@ -19,7 +21,7 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
   onLaunchWithAgent,
   onLaunchWithTeam
 }) => {
-  const [viewMode, setViewMode] = useState<'agents' | 'teams'>('agents');
+  const [viewMode, setViewMode] = useState<'agents' | 'carta_documento' | 'teams'>('agents');
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -38,7 +40,7 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#091224] p-1.5 rounded-xl border border-[#1d2f5d] self-start">
+          <div className="flex flex-wrap items-center gap-2 bg-[#091224] p-1.5 rounded-xl border border-[#1d2f5d] self-start">
             <button
               type="button"
               onClick={() => setViewMode('agents')}
@@ -49,6 +51,18 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
               }`}
             >
               Agentes Especializados ({ALL_LEGAL_AGENTS.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('carta_documento')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'carta_documento'
+                  ? 'bg-[#c5a059] text-[#0b1325]'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Carta Documento & Escritos (DOC/PDF)</span>
             </button>
             <button
               type="button"
@@ -72,7 +86,10 @@ export const AgentsGalleryView: React.FC<AgentsGalleryViewProps> = ({
               onLaunchWithAgent(agent.id);
             }
           }}
+          onOpenCartaDocumento={() => setViewMode('carta_documento')}
         />
+      ) : viewMode === 'carta_documento' ? (
+        <CartaDocumentoBuilder />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {LEGAL_TEAMS.map((team) => {

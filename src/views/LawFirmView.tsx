@@ -14,11 +14,14 @@ import {
   ChevronRight,
   ShieldAlert,
   Calculator,
-  Users
+  Users,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { LegalCaseFile } from '../types/index.ts';
 import { AgentGallery } from '../components/AgentGallery.tsx';
+import { CartaDocumentoBuilder } from '../components/CartaDocumentoBuilder.tsx';
+import { exportLegalDraftToDOC, exportLegalDraftToPDF } from '../utils/exportDocuments.ts';
 
 interface LawFirmViewProps {
   onSelectCase?: (caseFile: LegalCaseFile) => void;
@@ -28,7 +31,7 @@ interface LawFirmViewProps {
 export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMultiAgentStudio }) => {
   const { activeJurisdiction } = useAuth();
   const [cases, setCases] = useState<LegalCaseFile[]>([]);
-  const [activeTab, setActiveTab] = useState<'agentes' | 'expedientes' | 'redactor' | 'plazos'>('agentes');
+  const [activeTab, setActiveTab] = useState<'agentes' | 'carta_documento' | 'expedientes' | 'redactor' | 'plazos'>('agentes');
 
   // Procedural Drafter State
   const [tipoEscrito, setTipoEscrito] = useState('Demanda Ordinaria por Daños y Perjuicios');
@@ -136,15 +139,23 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
           <div className="flex flex-wrap items-center gap-1.5 bg-[#122042] p-1 rounded-xl border border-[#1d2f5d] self-start">
             <button
               onClick={() => setActiveTab('agentes')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'agentes' ? 'bg-[#c5a059] text-[#0b1325] font-bold' : 'text-slate-300 hover:text-white'
               }`}
             >
               <Users className="w-3.5 h-3.5" /> Galería de Agentes IA
             </button>
             <button
+              onClick={() => setActiveTab('carta_documento')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'carta_documento' ? 'bg-[#c5a059] text-[#0b1325] font-bold' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" /> Carta Documento & Escritos (DOC/PDF)
+            </button>
+            <button
               onClick={() => setActiveTab('expedientes')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'expedientes' ? 'bg-[#c5a059] text-[#0b1325] font-bold' : 'text-slate-300 hover:text-white'
               }`}
             >
@@ -152,7 +163,7 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
             </button>
             <button
               onClick={() => setActiveTab('redactor')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'redactor' ? 'bg-[#c5a059] text-[#0b1325] font-bold' : 'text-slate-300 hover:text-white'
               }`}
             >
@@ -160,7 +171,7 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
             </button>
             <button
               onClick={() => setActiveTab('plazos')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'plazos' ? 'bg-[#c5a059] text-[#0b1325] font-bold' : 'text-slate-300 hover:text-white'
               }`}
             >
@@ -169,7 +180,7 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
             {onOpenMultiAgentStudio && (
               <button
                 onClick={onOpenMultiAgentStudio}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#172a54] hover:bg-[#1f376d] text-[#f3dfa2] border border-[#c5a059]/40 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#172a54] hover:bg-[#1f376d] text-[#f3dfa2] border border-[#c5a059]/40 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3 h-3 text-[#c5a059]" /> Mesa Orquestadora Completa
               </button>
@@ -180,7 +191,14 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
 
       {/* 0. AgentGallery Tab */}
       {activeTab === 'agentes' && (
-        <AgentGallery />
+        <AgentGallery
+          onOpenCartaDocumento={() => setActiveTab('carta_documento')}
+        />
+      )}
+
+      {/* 0.5. Carta Documento & Escritos Fehacientes Builder Tab */}
+      {activeTab === 'carta_documento' && (
+        <CartaDocumentoBuilder />
       )}
 
       {/* 1. Expedientes Tab */}
@@ -324,25 +342,49 @@ export const LawFirmView: React.FC<LawFirmViewProps> = ({ onSelectCase, onOpenMu
                 <FileText className="w-4 h-4 text-[#c5a059]" /> Borrador Forense Generado
               </span>
               {generatedDraft && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(generatedDraft);
                       setDraftCopied(true);
                       setTimeout(() => setDraftCopied(false), 2000);
                     }}
-                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1"
+                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1 cursor-pointer"
                   >
                     {draftCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#c5a059]" />}
                     <span>Copiar</span>
                   </button>
                   <button
-                    onClick={handleExportDraftTxt}
-                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1"
+                    onClick={() => exportLegalDraftToDOC(tipoEscrito, generatedDraft)}
+                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-[#c5a059]" />
-                    <span>Descargar TXT</span>
+                    <span>Emitir DOC</span>
                   </button>
+                  <button
+                    onClick={() => exportLegalDraftToPDF(tipoEscrito, generatedDraft)}
+                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#c5a059]" />
+                    <span>Emitir PDF</span>
+                  </button>
+                  <button
+                    onClick={handleExportDraftTxt}
+                    className="p-1.5 rounded-lg bg-[#122042] text-slate-300 hover:text-white border border-[#1d2f5d] text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#c5a059]" />
+                    <span>TXT</span>
+                  </button>
+                  <a
+                    href="https://miscomunicacionesdigitales.com.ar/account/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#c5a059] to-[#a68138] text-[#0b1325] font-bold text-xs flex items-center gap-1"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Mis Comunicaciones Digitales</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               )}
             </div>
